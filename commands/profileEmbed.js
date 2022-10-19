@@ -33,6 +33,8 @@ const handler = async message => {
 
     const avatarUrl = message.author.avatarURL() ?? 'https://cdn.discordapp.com/embed/avatars/0.png';
 
+    let willDelteMessage = true;
+    let replyMessage = '';
     let profile = {
         title: '',
         color: 'Default',
@@ -51,28 +53,27 @@ const handler = async message => {
         profile = await JSON.parse(embeds, 'utf8')['embeds'][0];
     }
 
-    if(/^display$/i.test(option) && jsonData != null){
-        message.channel.send(jsonData);
-        return;
-    }
-
     switch(true){
+        case /^display$/i.test(option):
+            willDeleteMessage = false;
+            break;
+
         case /^help$/i.test(option):
-            message.channel.send(
+            replyMessage =
                 "コマンド例 !pf title hogehoge" + "\n" +
                 "オプション:" + "\n" +
                 "color : 色コードを入力してください" + "\n" +
                 "title : 文字を入力してください" + "\n" +
                 "description : 文字を入力してください" + "\n" +
                 "image : URLを入力してください" + "\n" +
-                "display : プロフィールが表示されます"
-            );
+                "display : プロフィールが表示されます";
             break;
+
         case /^color$/i.test(option):       //colorチェックしないとだめ
             if(text.match(/^([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)){   //#は使わない
                 profile.color = text;
             }else{
-                message.channel.send('値が間違っています\n 例: 0099ff または AAA');
+                replyMessage = '値が間違っています\n 例: 0099ff または AAA';
             }
             break;
         case /^title$/i.test(option):
@@ -85,13 +86,11 @@ const handler = async message => {
             if(isUrl(text)){
                 profile.image.url = text;
             }else{
-                message.channel.send('正しいurlを入力してください');
+                replyMessage = '正しいurlを入力してください';
             }
             break;
-        case /^display$/i.test(option):
-            break
         default:
-            message.channel.send(`${option}オプションは存在しません。\nオプション例: color, title, description, image`);
+            replyMessage = `${option}オプションは存在しません。\nオプション例: color, title, description, image`;
             break;
     }
 
@@ -116,7 +115,7 @@ const handler = async message => {
         }
     });
 
-    const embedTemplate = await new Discord.MessageEmbed()
+    const embed = await new Discord.MessageEmbed()
             .setAuthor({
                 // displayNameだとnicknameも考慮してくれる
                 name: `${message.member.displayName}`,
@@ -129,11 +128,18 @@ const handler = async message => {
             .setThumbnail(avatarUrl)
             .setTimestamp();
 
+    // もし付加的なメッセージがあれば送信
+    if(replyMessage !== '') {
+        message.channel.send(replyMessage);
+    }
+
     // 表示して削除
-    const reply = await message.channel.send({ embeds: [embedTemplate] });
-    await setTimeout(5000);
-    await message.delete();
-    await reply.delete();
+    const reply = await message.channel.send({ embeds: [embed] });
+    if( willDeleteMessage ) {
+        await setTimeout(5000);
+        await message.delete();
+        await reply.delete();
+    }
 }
 
 module.exports = {event, handler};
