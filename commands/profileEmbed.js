@@ -14,7 +14,7 @@ const handler = async message => {
 
     const avatarUrl = message.author.avatarURL() ?? 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-    let embedProps = {
+    let profile = {
         title: '',
         color: 'Default',
         description: '',
@@ -29,20 +29,8 @@ const handler = async message => {
     // プロフィールがすでにある場合はファイルロードする
     if( hasProfile ){
         const embeds = fs.readFileSync(`./profilesData/${message.author.id}.json`);
-        embedProps = await JSON.parse(embeds, 'utf8')['embeds'][0];
+        profile = await JSON.parse(embeds, 'utf8')['embeds'][0];
     }
-
-    const embedTemplate = await new Discord.MessageEmbed()
-            .setAuthor({
-                name: `${message.member.displayName}`,  // displayNameだとnicknameも考慮してくれる
-                iconURL: avatarUrl,
-            })
-            .setTitle(embedProps.title)
-            .setColor(embedProps.color)
-            .setDescription(embedProps.description)
-            .setImage(embedProps.image.url)
-            .setThumbnail(avatarUrl)
-            .setTimestamp()
 
     if(/^display$/i.test(option) && jsonData != null){
         message.channel.send(jsonData);
@@ -63,20 +51,20 @@ const handler = async message => {
             break;
         case /^color$/i.test(option):       //colorチェックしないとだめ
             if(text.match(/^([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)){   //#は使わない
-                embedTemplate.setColor(text) // #0099f 0x0099ff
+                profile.color = text;
             }else{
                 message.channel.send('値が間違っています\n 例: 0099ff または AAA');
             }
             break;
         case /^title$/i.test(option):
-            embedTemplate.setTitle(text)
+            profile.title = text;
             break;
         case /^description$/i.test(option):
-            embedTemplate.setDescription(text)
+            profile.description = text;
             break;
         case /^image$/i.test(option):
             if(imageCheck(text)){
-                embedTemplate.setImage(text)
+                profile.image.url = text;
             }else{
                 message.channel.send('正しいurlを入力してください');
             }
@@ -89,14 +77,17 @@ const handler = async message => {
     }
 
     // 保存するオブジェクト
-    let profileObject = {
-        embeds: [embedTemplate],
-    }
+    // 互換性を崩さないためにprofileObjectは
+    // (root) -> "embeds" -> Array -> 0番目オブジェクト -> profile
+    // という構造を保っていますが、タイミングを見て profile を直接保存するとより良いと思います...!
+    let profileForSave = {
+        embeds: [profile],
+    };
 
-    fs.writeFile(`./profilesData/${message.author.id}.json`, JSON.stringify(profileObject, null, '    '), (err, file) => {
+    fs.writeFile(`./profilesData/${message.author.id}.json`, JSON.stringify(profileForSave, null, '    '), (err, file) => {
         if(err){
             console.log(err);
-        }else{
+        } else {
             console.log('Profile file write OK')
 
             // プロフィールを持たない = 新規作成なのでそのようなログを配信する
@@ -106,8 +97,20 @@ const handler = async message => {
         }
     });
 
+    const embedTemplate = await new Discord.MessageEmbed()
+            .setAuthor({
+                // displayNameだとnicknameも考慮してくれる
+                name: `${message.member.displayName}`,
+                iconURL: avatarUrl,
+            })
+            .setTitle(profile.title)
+            .setColor(profile.color)
+            .setDescription(profile.description)
+            .setImage(profile.image.url)
+            .setThumbnail(avatarUrl)
+            .setTimestamp();
 
-    //表示して削除
+    // 表示して削除
     const reply = await message.channel.send({ embeds: [embedTemplate] });
     await setTimeout(5000);
     await message.delete();
