@@ -6,6 +6,25 @@ const URL = require("url").URL;
 
 const event = 'messageCreate';
 
+// 該当のテキストがURL形式であるかを調べる
+function isUrl(url){
+    try {
+        new URL(url);
+        return true;
+    } catch (err) {
+        return false;
+    }
+}
+
+// 与えれたメッセージテキストを
+// {prefix}pf/オプション/引数
+// の3つに分割しオプションと引数を返す
+function splitOptionText(message){
+    // (prefix)pf の部分は除外して読み出す
+    const [_pf, opt, ...descs] = message.split(' ');
+    return [opt, descs.join(' ')];
+}
+
 const handler = async message => {
     if(message.author.bot) return;
     if(!message.content.startsWith(`${prefix}pf`)) return;
@@ -63,7 +82,7 @@ const handler = async message => {
             profile.description = text;
             break;
         case /^image$/i.test(option):
-            if(imageCheck(text)){
+            if(isUrl(text)){
                 profile.image.url = text;
             }else{
                 message.channel.send('正しいurlを入力してください');
@@ -115,21 +134,6 @@ const handler = async message => {
     await setTimeout(5000);
     await message.delete();
     await reply.delete();
-
-    function imageCheck(url){
-        try{
-            new URL(url);
-            return true;
-        }catch (err){
-            return false;
-        }
-    }
-
-    function splitOptionText(messageContent){
-        let arrayText = messageContent.split(' ').slice(1);
-        let text = arrayText.slice(1).join(' ');    //説明文
-        return [arrayText[0], text];
-    }
 }
 
 module.exports = {event, handler};
