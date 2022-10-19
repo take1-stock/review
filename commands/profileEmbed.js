@@ -1,5 +1,5 @@
 const Discord = require('discord.js');
-const prefix = require('../configJsons/config.json').prefix;
+const prefix = require('../config/config.json').prefix;
 const fs = require('fs');
 const { setTimeout } = require('timers/promises');
 const URL = require("url").URL;

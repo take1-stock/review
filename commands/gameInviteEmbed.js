@@ -1,9 +1,9 @@
 const Discord = require('discord.js');
-const prefix = require('../configJsons/config.json').prefix;
+const prefix = require('../config/config.json').prefix;
 const emoji = require('node-emoji');
 
 const fs = require('fs');
-const jsonData = JSON.parse(fs.readFileSync("./configJsons/gametitle.json", 'utf8'));   //こいつだけ相対パス
+const jsonData = JSON.parse(fs.readFileSync("./config/gametitle.json", 'utf8'));   //こいつだけ相対パス
 
 const event = 'messageCreate';
 const cmdRegex = new RegExp("^" + prefix + ".*@[1-9]", 'i');

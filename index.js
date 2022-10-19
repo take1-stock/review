@@ -1,6 +1,6 @@
 const Discord = require('discord.js');
 require('dotenv').config(); //.envでtokenとか管理
-const config = require('./configJsons/config.json');
+const config = require('./config/config.json');
 
 const events = require('./commands');
 

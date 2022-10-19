@@ -1,4 +1,4 @@
-const prefix = require('../configJsons/config.json').prefix;
+const prefix = require('../config/config.json').prefix;
 
 const event = 'messageCreate';       //どの機能を使うか
 
