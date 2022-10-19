@@ -17,129 +17,182 @@ function isUrl(url){
 }
 
 // 与えれたメッセージテキストを
-// {prefix}pf/オプション/引数
+// {prefix}pf/サブコマンド/引数
 // の3つに分割しオプションと引数を返す
-function splitOptionText(message){
+function splitSubcommandText(message){
     // (prefix)pf の部分は除外して読み出す
-    const [_pf, opt, ...descs] = message.split(' ');
-    return [opt, descs.join(' ')];
+    const [_pf, cmd, ...descs] = message.split(' ');
+    return [cmd, descs.join(' ')];
 }
 
-const handler = async message => {
-    if(message.author.bot) return;
-    if(!message.content.startsWith(`${prefix}pf`)) return;
+class ProfileEmbedCommand {
+    constructor(message) {
+        this.message = message;
 
-    let [option, text] = splitOptionText(message.content);
+        this.hasProfile = false;
+        this.replyMessage = '';
+        this.willDeleteMessage = true;
 
-    const avatarUrl = message.author.avatarURL() ?? 'https://cdn.discordapp.com/embed/avatars/0.png';
-
-    let willDelteMessage = true;
-    let replyMessage = '';
-    let profile = {
-        title: '',
-        color: 'Default',
-        description: '',
-        image: {
-            url: '',
-        },
-    };
-
-    // ファイルが存在する場合、プロフィールの内容は更新処理になる
-    const hasProfile = fs.existsSync(`./profilesData/${message.author.id}.json`);
-
-    // プロフィールがすでにある場合はファイルロードする
-    if( hasProfile ){
-        const embeds = fs.readFileSync(`./profilesData/${message.author.id}.json`);
-        profile = await JSON.parse(embeds, 'utf8')['embeds'][0];
+        this.profile = {
+            title: '',
+            color: 'Default',
+            description: '',
+            image: {
+                url: '',
+            },
+        };
     }
 
-    switch(true){
-        case /^display$/i.test(option):
-            willDeleteMessage = false;
-            break;
+    profilePath() {
+        return `./profilesData/${this.message.author.id}.json`;
+    }
 
-        case /^help$/i.test(option):
-            replyMessage =
-                "コマンド例 !pf title hogehoge" + "\n" +
-                "オプション:" + "\n" +
-                "color : 色コードを入力してください" + "\n" +
-                "title : 文字を入力してください" + "\n" +
-                "description : 文字を入力してください" + "\n" +
-                "image : URLを入力してください" + "\n" +
-                "display : プロフィールが表示されます";
-            break;
+    async loadProfile() {
+        // ファイルが存在する場合、プロフィールの内容は更新処理になる
+        this.hasProfile = fs.existsSync(this.profilePath());
 
-        case /^color$/i.test(option):       //colorチェックしないとだめ
-            if(text.match(/^([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)){   //#は使わない
-                profile.color = text;
-            }else{
-                replyMessage = '値が間違っています\n 例: 0099ff または AAA';
-            }
-            break;
-        case /^title$/i.test(option):
-            profile.title = text;
-            break;
-        case /^description$/i.test(option):
-            profile.description = text;
-            break;
-        case /^image$/i.test(option):
-            if(isUrl(text)){
-                profile.image.url = text;
-            }else{
-                replyMessage = '正しいurlを入力してください';
-            }
-            break;
-        default:
-            replyMessage = `${option}オプションは存在しません。\nオプション例: color, title, description, image`;
-            break;
+        if( this.hasProfile ){
+            // プロフィールがすでにある場合はファイルロードする
+            const embeds = fs.readFileSync(this.profilePath());
+            this.profile = await JSON.parse(embeds, 'utf8')['embeds'][0];
+        }
     }
 
     // 保存するオブジェクト
     // 互換性を崩さないためにprofileObjectは
     // (root) -> "embeds" -> Array -> 0番目オブジェクト -> profile
     // という構造を保っていますが、タイミングを見て profile を直接保存するとより良いと思います...!
-    let profileForSave = {
-        embeds: [profile],
-    };
+    profileForSave() {
+        const profileForSave = {
+            embeds: [this.profile],
+        };
+        const jsonStr = JSON.stringify(profileForSave, null, '    ');
+        return jsonStr;
+    }
 
-    fs.writeFile(`./profilesData/${message.author.id}.json`, JSON.stringify(profileForSave, null, '    '), (err, file) => {
-        if(err){
-            console.log(err);
-        } else {
-            console.log('Profile file write OK')
+    async writeProfile() {
+        fs.writeFile(this.profilePath(), this.profileForSave(), (err, _file) => {
+            if(err){
+                console.log(err);
+            } else {
+                console.log('Profile file write OK')
 
-            // プロフィールを持たない = 新規作成なのでそのようなログを配信する
-            if( !hasProfile ) {
-                message.channel.send("プロフィールを作成しました。");
+                // プロフィールを持たない = 新規作成なのでそのようなログを配信する
+                if( !this.hasProfile ) {
+                    this.message.channel.send("プロフィールを作成しました。");
+                }
             }
-        }
-    });
+        });
+    }
 
-    const embed = await new Discord.MessageEmbed()
+    run(name, text) {
+        const cmds = {
+            display: this.display,
+            help: this.help,
+            color: this.color,
+            title: this.title,
+            image: this.image,
+        };
+
+        const cmd = cmds[name];
+        if(cmd == null) {
+            this.notfound(name);
+            return;
+        }
+        cmd.call(this, text);
+    }
+
+    display() {
+        this.willDeleteMessage = false;
+    }
+
+    help() {
+        this.replyMessage =
+            "コマンド例 !pf title hogehoge" + "\n" +
+            "オプション:" + "\n" +
+            "color : 色コードを入力してください" + "\n" +
+            "title : 文字を入力してください" + "\n" +
+            "description : 文字を入力してください" + "\n" +
+            "image : URLを入力してください" + "\n" +
+            "display : プロフィールが表示されます";
+    }
+
+    color(text) {
+        if(text.match(/^([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/)){   //#は使わない
+            this.profile.color = text;
+        } else {
+            this.replyMessage = '値が間違っています\n 例: 0099ff または AAA';
+        }
+    }
+
+    title(text) {
+        this.profile.title = text;
+    }
+
+    description(text) {
+        this.profile.description = text;
+    }
+
+    image(text) {
+        if(isUrl(text)){
+            this.profile.image.url = text;
+        }else{
+            this.replyMessage = '正しいurlを入力してください';
+        }
+    }
+
+    notfound(name) {
+        this.replyMessage = `${name}オプションは存在しません。\nオプション例: color, title, description, image`;
+    }
+
+    avatarUrl() {
+        return this.message.author.avatarURL() ?? 'https://cdn.discordapp.com/embed/avatars/0.png';
+    }
+
+    async embed() {
+        return await new Discord.MessageEmbed()
             .setAuthor({
                 // displayNameだとnicknameも考慮してくれる
-                name: `${message.member.displayName}`,
-                iconURL: avatarUrl,
+                name: `${this.message.member.displayName}`,
+                iconURL: this.avatarUrl(),
             })
-            .setTitle(profile.title)
-            .setColor(profile.color)
-            .setDescription(profile.description)
-            .setImage(profile.image.url)
-            .setThumbnail(avatarUrl)
-            .setTimestamp();
-
-    // もし付加的なメッセージがあれば送信
-    if(replyMessage !== '') {
-        message.channel.send(replyMessage);
+            .setTitle(this.profile.title)
+            .setColor(this.profile.color)
+            .setDescription(this.profile.description)
+            .setImage(this.profile.image.url)
+            .setThumbnail(this.avatarUrl())
+            .setTimestamp()
     }
 
-    // 表示して削除
-    const reply = await message.channel.send({ embeds: [embed] });
-    if( willDeleteMessage ) {
-        await setTimeout(5000);
-        await message.delete();
-        await reply.delete();
+    async send() {
+        const embed = await this.embed();
+
+        // もし付加的なメッセージがあれば送信
+        if(this.replyMessage !== '') {
+            this.message.channel.send(this.replyMessage);
+        }
+
+        // 表示して削除
+        const reply = await this.message.channel.send({ embeds: [embed] });
+        if( this.willDeleteMessage ) {
+            await setTimeout(5000);
+            await this.message.delete();
+            await reply.delete();
+        }
     }
+}
+
+const handler = async message => {
+    if(message.author.bot) return;
+    if(!message.content.startsWith(`${prefix}pf`)) return;
+
+    let [subcmdName, text] = splitSubcommandText(message.content);
+
+    const subcmd = new ProfileEmbedCommand(message);
+    await subcmd.loadProfile();
+    subcmd.run(subcmdName, text);
+    await subcmd.writeProfile();
+    await subcmd.send();
 }
 
 module.exports = {event, handler};
