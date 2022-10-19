@@ -1,0 +1,29 @@
+{
+  "name": "discord-invite-board-bot",
+  "version": "1.0.0",
+  "description": "a discord bot for managing invite board",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/take1-stock/review.git"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "invite",
+    "board"
+  ],
+  "author": "take1-stock",
+  "bugs": {
+    "url": "https://github.com/take1-stock/review/issues"
+  },
+  "homepage": "https://github.com/take1-stock/review#readme",
+  "dependencies": {
+    "discord.js": "^13.7.8",
+    "dotenv": "^16.0.3",
+    "node-emoji": "^1.11.0"
+  }
+}
